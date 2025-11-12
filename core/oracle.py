@@ -10,3 +10,14 @@ class CognitiveOracle:
         power = sum(abs(x) for x in vector) / len(vector)
         return round(power * sentiment * 10000, 2)
 
+    def fetch_tech_sentiment(self):
+        return 0.65 + (time.time() % 86400) / 86400 * 0.3
+
+    def fetch_crypto_data(self):
+        return {"market_cap": 2.5e12, "volume": 1.2e11, "btc_dominance": 48.5}
+
+    def get_market_data(self):
+        return {
+            "tech_sentiment": self.fetch_tech_sentiment(),
+            "crypto": self.fetch_crypto_data()
+        }

@@ -33,9 +33,11 @@
         </header>
         <div class="grid">
             <div class="card">
-                <h2>Mine Your Cognition</h2>
-                <input type="text" id="username" placeholder="GitHub username" value="demo_user">
-                <button id="mineBtn" onclick="startMining()">START MINING</button>
+                <h2>Login</h2>
+                <input type="text" id="username" placeholder="Enter username" value="demo_user">
+                <button onclick="login()">LOGIN</button>
+                <h2 style="margin-top:16px">Mine Your Cognition</h2>
+                <button id="mineBtn" onclick="startJobMining()">START JOB MINING</button>
                 <div class="score" id="score">--</div>
                 <div id="log" class="log"></div>
             </div>
@@ -46,17 +48,35 @@
             <div class="card">
                 <h2>Your cNFT</h2>
                 <div id="cnft"></div>
+                <div id="cnftList"></div>
             </div>
             <div class="card">
                 <h2>Blockchain</h2>
                 <div id="chain"></div>
+                <div id="chainStats"></div>
             </div>
         </div>
     </div>
     <script>
         function log(msg,type){const el=document.getElementById('log');const t=new Date().toLocaleTimeString();el.innerHTML+='<div class="'+(type||'info')+'">['+t+'] '+msg+'</div>';el.scrollTop=el.scrollHeight}
-        async function startMining(){const btn=document.getElementById('mineBtn');btn.disabled=true;const username=document.getElementById('username').value;log('Starting mining for @'+username+'...');try{const res=await fetch('/api/mine',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});const data=await res.json();if(res.ok){log('Mining complete','success');document.getElementById('score').textContent=data.score;document.getElementById('commits').innerHTML=data.commits.slice(0,3).map(c=>'<div class="item"><strong>'+c.repo+'</strong><br>'+c.message+'<br><small>+'+c.stats.additions+' -'+c.stats.deletions+'</small></div>').join('');document.getElementById('cnft').innerHTML='<p><strong>Token ID:</strong><br><code>'+data.cnft.token_id+'</code></p><p><strong>Score:</strong> '+data.cnft.cognitive_score+'</p><p><strong>Earnings:</strong> '+data.cnft.total_earnings+'</p><p><strong>Minted:</strong> '+new Date(data.cnft.minted_at*1000).toLocaleString()+'</p>';document.getElementById('chain').innerHTML='<pre>'+JSON.stringify(data.chain,null,2)+'</pre>'}else{log('Mining failed','error')}}catch(e){log('Network error: '+e.message,'error')}btn.disabled=false}
+
+        async function login(){const username=document.getElementById('username').value;const res=await fetch('/api/login/dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});if(res.ok){log('Logged in as @'+username,'success');loadCnftList();loadChainStats();loadMarketData();}else{log('Login failed','error')}}
+
+        async function startJobMining(){const btn=document.getElementById('mineBtn');btn.disabled=true;const username=document.getElementById('username').value;log('Queuing mining job for @'+username+'...');try{const res=await fetch('/api/mine/job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});const data=await res.json();if(res.ok){log('Job queued: '+data.job_id,'info');await pollJob(data.job_id);}else{log('Queue failed','error')}}catch(e){log('Network error: '+e.message,'error')}btn.disabled=false}
+
+        async function pollJob(jobId){log('Polling job '+jobId+'...');for(let i=0;i<50;i++){await new Promise(r=>setTimeout(r,500));const res=await fetch('/api/job/'+jobId);const data=await res.json();if(data.status==='completed'){log('Job completed','success');renderResult(data.result);return}if(data.status==='failed'){log('Job failed: '+(data.result&&data.result.error||''),'error');return}}log('Job timeout','error')}
+
+        function renderResult(data){document.getElementById('score').textContent=data.score;document.getElementById('commits').innerHTML=data.commits.slice(0,3).map(c=>'<div class="item"><strong>'+c.repo+'</strong><br>'+c.message+'<br><small>+'+c.stats.additions+' -'+c.stats.deletions+'</small></div>').join('');document.getElementById('cnft').innerHTML='<p><strong>Token ID:</strong><br><code>'+data.cnft.token_id+'</code></p><p><strong>Score:</strong> '+data.cnft.cognitive_score+'</p><p><strong>Earnings:</strong> '+data.cnft.total_earnings+'</p><p><strong>Minted:</strong> '+new Date(data.cnft.minted_at*1000).toLocaleString()+'</p>';document.getElementById('chain').innerHTML='<pre>'+JSON.stringify(data.chain,null,2)+'</pre>';loadCnftList();loadChainStats();}
+
+        async function loadCnftList(){const res=await fetch('/api/cnft/list');if(!res.ok)return;const data=await res.json();document.getElementById('cnftList').innerHTML='<h3>My cNFTs</h3>'+data.items.map(x=>'<div class="item"><code>'+x.token_id+'</code> • score '+x.cognitive_score+'</div>').join('')}
+
+        async function loadChainStats(){const res=await fetch('/api/chain/stats');if(!res.ok)return;const data=await res.json();document.getElementById('chainStats').innerHTML='<p><strong>Height:</strong> '+data.block_height+'</p><p><strong>Total cNFTs:</strong> '+data.total_cnft+'</p><p><strong>Transactions:</strong> '+data.total_transactions+'</p>'}
+
+        async function loadMarketData(){const res=await fetch('/api/market/data');if(!res.ok)return;const data=await res.json();log('Tech sentiment '+(data.tech_sentiment*100).toFixed(1)+'% • BTC dom '+data.crypto.btc_dominance+'%','info')}
+
+        // Auto load basic stats
+        loadChainStats();
+        loadMarketData();
     </script>
 </body>
 </html>
-
