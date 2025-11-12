@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXUS - Cognitive Mining</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:Segoe UI,Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);color:#e0e0ff;min-height:100vh}
+        .container{max-width:1400px;margin:0 auto;padding:20px}
+        header{text-align:center;padding:30px;background:rgba(0,0,0,.3);border-radius:15px;margin-bottom:30px;backdrop-filter:blur(10px)}
+        h1{font-size:3em;background:linear-gradient(90deg,#00ff88,#00d4ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:20px}
+        .card{background:rgba(255,255,255,.05);border:1px solid rgba(0,255,136,.3);border-radius:12px;padding:25px;backdrop-filter:blur(10px);transition:transform .3s,box-shadow .3s}
+        .card:hover{transform:translateY(-5px);box-shadow:0 10px 30px rgba(0,255,136,.2)}
+        .card h2{color:#00ff88;margin-bottom:15px;font-size:1.5em}
+        input,button{width:100%;padding:12px;margin:8px 0;border:none;border-radius:8px;font-size:16px}
+        input{background:rgba(0,0,0,.3);color:#e0e0ff;border:1px solid rgba(0,255,136,.3)}
+        button{background:linear-gradient(90deg,#00ff88,#00d4ff);color:#000;font-weight:bold;cursor:pointer;transition:opacity .3s}
+        button:hover{opacity:.8}
+        button:disabled{background:#555;cursor:not-allowed}
+        .log{background:rgba(0,0,0,.5);padding:15px;border-radius:8px;font-family:Courier New,monospace;font-size:12px;max-height:300px;overflow-y:auto;margin-top:15px}
+        .score{font-size:4em;text-align:center;color:#00d4ff;margin:20px 0}
+        .item{background:rgba(0,0,0,.2);padding:10px;margin:8px 0;border-left:3px solid #00ff88;border-radius:5px}
+        .success{color:#00ff88}.error{color:#ff4444}.info{color:#00d4ff}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>EXUS COGNITIVE MINING</h1>
+            <p>Transform digital consciousness into liquid assets</p>
+        </header>
+        <div class="grid">
+            <div class="card">
+                <h2>Mine Your Cognition</h2>
+                <input type="text" id="username" placeholder="GitHub username" value="demo_user">
+                <button id="mineBtn" onclick="startMining()">START MINING</button>
+                <div class="score" id="score">--</div>
+                <div id="log" class="log"></div>
+            </div>
+            <div class="card">
+                <h2>GitHub Activity</h2>
+                <div id="commits"></div>
+            </div>
+            <div class="card">
+                <h2>Your cNFT</h2>
+                <div id="cnft"></div>
+            </div>
+            <div class="card">
+                <h2>Blockchain</h2>
+                <div id="chain"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function log(msg,type){const el=document.getElementById('log');const t=new Date().toLocaleTimeString();el.innerHTML+='<div class="'+(type||'info')+'">['+t+'] '+msg+'</div>';el.scrollTop=el.scrollHeight}
+        async function startMining(){const btn=document.getElementById('mineBtn');btn.disabled=true;const username=document.getElementById('username').value;log('Starting mining for @'+username+'...');try{const res=await fetch('/api/mine',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});const data=await res.json();if(res.ok){log('Mining complete','success');document.getElementById('score').textContent=data.score;document.getElementById('commits').innerHTML=data.commits.slice(0,3).map(c=>'<div class="item"><strong>'+c.repo+'</strong><br>'+c.message+'<br><small>+'+c.stats.additions+' -'+c.stats.deletions+'</small></div>').join('');document.getElementById('cnft').innerHTML='<p><strong>Token ID:</strong><br><code>'+data.cnft.token_id+'</code></p><p><strong>Score:</strong> '+data.cnft.cognitive_score+'</p><p><strong>Earnings:</strong> '+data.cnft.total_earnings+'</p><p><strong>Minted:</strong> '+new Date(data.cnft.minted_at*1000).toLocaleString()+'</p>';document.getElementById('chain').innerHTML='<pre>'+JSON.stringify(data.chain,null,2)+'</pre>'}else{log('Mining failed','error')}}catch(e){log('Network error: '+e.message,'error')}btn.disabled=false}
+    </script>
+</body>
+</html>
+

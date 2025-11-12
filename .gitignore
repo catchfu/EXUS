@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flask/Runtime
+instance/
+*.log
+
+# Node/Contracts (if added later)
+node_modules/
+artifacts/
+cache/
+dist/
+
