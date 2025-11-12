@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session, redirect
 import sys, os
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 from core.blockchain import CortexChain
@@ -9,6 +9,7 @@ from ai.extractor import CognitiveExtractor
 from core.db import SessionLocal
 from core.models import User, CNFT, Block, Job
 import threading, uuid, json, time
+import requests
 
 app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = 'exus-dev-key'
@@ -24,7 +25,7 @@ def dashboard():
 def mine():
     data = request.json or {}
     username = data.get('username') or session.get('username') or 'demo_user'
-    miner = GitHubMiner()
+    miner = GitHubMiner(token=session.get('github_token') or os.getenv('GITHUB_PAT'))
     commits = miner.get_recent_commits(username)
     extractor = CognitiveExtractor()
     vectors = []
@@ -82,7 +83,7 @@ def run_mining_job(job_id, username):
         job.status = 'running'
         job.updated_at = int(time.time())
         db.commit()
-        miner = GitHubMiner()
+        miner = GitHubMiner(token=os.getenv('GITHUB_PAT'))
         commits = miner.get_recent_commits(username)
         extractor = CognitiveExtractor()
         vectors = []
@@ -144,7 +145,7 @@ if __name__ == '__main__':
 @app.route('/api/user/me')
 def user_me():
     u = session.get('username')
-    return jsonify({"username": u})
+    return jsonify({"username": u, "github_connected": bool(session.get('github_token'))})
 
 @app.route('/api/cnft/list')
 def cnft_list():
@@ -175,3 +176,79 @@ def chain_blocks():
 @app.route('/api/market/data')
 def market_data():
     return jsonify(oracle.get_market_data())
+
+@app.route('/auth/github/start')
+def auth_github_start():
+    client_id = os.getenv('GITHUB_CLIENT_ID')
+    redirect_uri = os.getenv('OAUTH_REDIRECT_URI', 'http://127.0.0.1:5000/auth/github/callback')
+    state = uuid.uuid4().hex
+    session['oauth_state'] = state
+    if not client_id:
+        return jsonify({"error":"GITHUB_CLIENT_ID not set"}), 400
+    params = {
+        'client_id': client_id,
+        'redirect_uri': redirect_uri,
+        'scope': 'repo user',
+        'state': state,
+        'allow_signup': 'true'
+    }
+    url = 'https://github.com/login/oauth/authorize'
+    return redirect(url + '?' + '&'.join([f"{k}={requests.utils.quote(str(v))}" for k,v in params.items()]))
+
+@app.route('/auth/github/callback')
+def auth_github_callback():
+    code = request.args.get('code')
+    state = request.args.get('state')
+    if not code or state != session.get('oauth_state'):
+        return jsonify({"error":"invalid_oauth_state"}), 400
+    client_id = os.getenv('GITHUB_CLIENT_ID')
+    client_secret = os.getenv('GITHUB_CLIENT_SECRET')
+    redirect_uri = os.getenv('OAUTH_REDIRECT_URI', 'http://127.0.0.1:5000/auth/github/callback')
+    headers = {'Accept':'application/json'}
+    data = {
+        'client_id': client_id,
+        'client_secret': client_secret,
+        'code': code,
+        'redirect_uri': redirect_uri,
+        'state': state
+    }
+    try:
+        r = requests.post('https://github.com/login/oauth/access_token', headers=headers, data=data, timeout=10)
+        tok = r.json().get('access_token')
+        if not tok:
+            return jsonify({"error":"oauth_exchange_failed", "detail": r.text}), 400
+        session['github_token'] = tok
+        return redirect('/')
+    except Exception as e:
+        return jsonify({"error":"oauth_error", "detail": str(e)}), 500
+
+@app.route('/api/user/export')
+def user_export():
+    username = session.get('username') or 'demo_user'
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter_by(username=username).first()
+        cnfts = db.query(CNFT).filter_by(owner=username).all()
+        blocks = db.query(Block).all()
+        return jsonify({
+            "user": {"username": username, "exists": bool(user)},
+            "cnfts": [
+                {"token_id": c.token_id, "score": c.cognitive_score, "minted_at": c.minted_at,
+                 "metadata_uri": c.metadata_uri}
+                for c in cnfts
+            ],
+            "blocks": [{"index": b.index, "hash": b.hash, "timestamp": b.timestamp, "miner": b.miner} for b in blocks]
+        })
+    finally:
+        db.close()
+
+@app.route('/api/user/data', methods=['DELETE'])
+def user_delete():
+    username = session.get('username') or 'demo_user'
+    db = SessionLocal()
+    try:
+        db.query(CNFT).filter_by(owner=username).delete()
+        db.commit()
+        return jsonify({"ok": True})
+    finally:
+        db.close()

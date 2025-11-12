@@ -36,6 +36,7 @@
                 <h2>Login</h2>
                 <input type="text" id="username" placeholder="Enter username" value="demo_user">
                 <button onclick="login()">LOGIN</button>
+                <button onclick="oauthGithub()" style="margin-top:8px">LOGIN WITH GITHUB</button>
                 <h2 style="margin-top:16px">Mine Your Cognition</h2>
                 <button id="mineBtn" onclick="startJobMining()">START JOB MINING</button>
                 <div class="score" id="score">--</div>
@@ -61,6 +62,7 @@
         function log(msg,type){const el=document.getElementById('log');const t=new Date().toLocaleTimeString();el.innerHTML+='<div class="'+(type||'info')+'">['+t+'] '+msg+'</div>';el.scrollTop=el.scrollHeight}
 
         async function login(){const username=document.getElementById('username').value;const res=await fetch('/api/login/dev',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});if(res.ok){log('Logged in as @'+username,'success');loadCnftList();loadChainStats();loadMarketData();}else{log('Login failed','error')}}
+        function oauthGithub(){window.location.href='/auth/github/start'}
 
         async function startJobMining(){const btn=document.getElementById('mineBtn');btn.disabled=true;const username=document.getElementById('username').value;log('Queuing mining job for @'+username+'...');try{const res=await fetch('/api/mine/job',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username})});const data=await res.json();if(res.ok){log('Job queued: '+data.job_id,'info');await pollJob(data.job_id);}else{log('Queue failed','error')}}catch(e){log('Network error: '+e.message,'error')}btn.disabled=false}
 
