@@ -16,6 +16,7 @@ app.config['SECRET_KEY'] = 'exus-dev-key'
 blockchain = CortexChain()
 zk = ZKProver()
 oracle = CognitiveOracle()
+_RL = {}
 
 @app.route('/')
 def dashboard():
@@ -25,6 +26,12 @@ def dashboard():
 def mine():
     data = request.json or {}
     username = data.get('username') or session.get('username') or 'demo_user'
+    k = f"{request.remote_addr}:mine"
+    now = time.time()
+    last = _RL.get(k, 0)
+    if now - last < 2:
+        return jsonify({"error":"rate_limited"}), 429
+    _RL[k] = now
     miner = GitHubMiner(token=session.get('github_token') or os.getenv('GITHUB_PAT'))
     commits = miner.get_recent_commits(username)
     extractor = CognitiveExtractor()
@@ -116,6 +123,12 @@ def run_mining_job(job_id, username):
 def mine_job():
     data = request.json or {}
     username = data.get('username') or session.get('username') or 'demo_user'
+    k = f"{request.remote_addr}:mine_job"
+    now = time.time()
+    last = _RL.get(k, 0)
+    if now - last < 1:
+        return jsonify({"error":"rate_limited"}), 429
+    _RL[k] = now
     job_id = uuid.uuid4().hex
     db = SessionLocal()
     try:
@@ -176,6 +189,18 @@ def chain_blocks():
 @app.route('/api/market/data')
 def market_data():
     return jsonify(oracle.get_market_data())
+
+@app.route('/api/jobs')
+def jobs_list():
+    db = SessionLocal()
+    try:
+        items = db.query(Job).order_by(Job.created_at.desc()).limit(20).all()
+        return jsonify({"items": [
+            {"id": j.id, "type": j.type, "status": j.status, "updated_at": j.updated_at}
+            for j in items
+        ]})
+    finally:
+        db.close()
 
 @app.route('/auth/github/start')
 def auth_github_start():
