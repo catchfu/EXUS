@@ -1,5 +1,6 @@
 import time
 import requests
+import os
 
 class CognitiveOracle:
     def __init__(self):

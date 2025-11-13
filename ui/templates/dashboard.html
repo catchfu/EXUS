@@ -56,6 +56,10 @@
                 <div id="chain"></div>
                 <div id="chainStats"></div>
             </div>
+            <div class="card">
+                <h2>Market Context</h2>
+                <div id="marketData"></div>
+            </div>
         </div>
     </div>
     <script>
@@ -74,7 +78,16 @@
 
         async function loadChainStats(){const res=await fetch('/api/chain/stats');if(!res.ok)return;const data=await res.json();document.getElementById('chainStats').innerHTML='<p><strong>Height:</strong> '+data.block_height+'</p><p><strong>Total cNFTs:</strong> '+data.total_cnft+'</p><p><strong>Transactions:</strong> '+data.total_transactions+'</p>'}
 
-        async function loadMarketData(){const res=await fetch('/api/market/data');if(!res.ok)return;const data=await res.json();log('Tech sentiment '+(data.tech_sentiment*100).toFixed(1)+'% • BTC dom '+data.crypto.btc_dominance+'%','info')}
+        async function loadMarketData(){const res=await fetch('/api/market/data');if(!res.ok)return;const data=await res.json();document.getElementById('marketData').innerHTML = `
+            <p>📈 Tech Sentiment: <strong>${(data.tech_sentiment*100).toFixed(1)}%</strong></p>
+            <p>🪙 Crypto Market Cap: <strong>$${(data.crypto.market_cap/1e9).toFixed(1)}B</strong></p>
+            <p>📊 FRED</p>
+            <ul>
+                <li>Unemployment (UNRATE): <strong>${data.fred?.unemployment ?? '-'}</strong></li>
+                <li>CPI (CPIAUCSL): <strong>${data.fred?.cpi ?? '-'}</strong></li>
+                <li>Fed Funds (FEDFUNDS): <strong>${data.fred?.fed_funds ?? '-'}</strong></li>
+                <li>GDP (GDP): <strong>${data.fred?.gdp ?? '-'}</strong></li>
+            </ul>`;}
 
         // Auto load basic stats
         loadChainStats();

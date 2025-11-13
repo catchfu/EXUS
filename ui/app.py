@@ -180,8 +180,7 @@ def jobs_list():
     finally:
         db.close()
 
-if __name__ == '__main__':
-    app.run(debug=True, threaded=True)
+ 
 
 @app.route('/api/user/me')
 def user_me():
@@ -221,7 +220,15 @@ def chain_blocks():
 
 @app.route('/api/market/data')
 def market_data():
-    return jsonify(oracle.get_market_data())
+    return jsonify({
+        **oracle.get_market_data(),
+        "fred": {
+            "unemployment": oracle.fetch_fred_data("UNRATE"),
+            "cpi": oracle.fetch_fred_data("CPIAUCSL"),
+            "fed_funds": oracle.fetch_fred_data("FEDFUNDS"),
+            "gdp": oracle.fetch_fred_data("GDP")
+        }
+    })
 
 
 @app.route('/auth/github/start')
@@ -306,3 +313,6 @@ def user_delete():
         return jsonify({"ok": True})
     finally:
         db.close()
+
+if __name__ == '__main__':
+    app.run(debug=True, threaded=True)
