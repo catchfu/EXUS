@@ -28,6 +28,7 @@ Set via your shell or system environment:
 - `GITHUB_CLIENT_SECRET`: GitHub OAuth App Client Secret – for OAuth login
 - `OAUTH_REDIRECT_URI`: Callback URL, default `http://127.0.0.1:5000/auth/github/callback`
 - `FRED_API_KEY`: Optional, for market data expansion (not required in MVP)
+- `EXUS_SECRET`: Encryption secret for OAuth tokens (recommended)
 
 ## OAuth Setup (GitHub)
 1. Create a GitHub OAuth app (Developer settings → OAuth Apps)
@@ -43,13 +44,15 @@ Set via your shell or system environment:
 - `GET /api/cnft/list` – cNFTs for user
 - `GET /api/chain/stats` – Basic chain stats
 - `GET /api/chain/blocks` – Last blocks (in-memory)
-- `GET /api/market/data` – Market context (stubbed)
+- `GET /api/market/data` - Market context (stubbed)
+- `GET /api/metrics` - Basic metrics (users, cNFTs, jobs)
 - `GET /api/user/export` – Export user-related data
 - `DELETE /api/user/data` – Delete user’s cNFT data (simulated DSR)
 
 ## Development
 - Database: `core/db.py` configures SQLite; `core/models.py` defines schema
 - Jobs: In-process threads in `ui/app.py`; replace with a worker (RQ/Celery) in production
+- Worker: `python -m scripts.worker` processes queued jobs; set `WORKER_USERNAME` for target user
 - Miner: `miners/github_miner.py` fetches real commits or falls back to demo
 - UI: `ui/templates/dashboard.html` for the dashboard; `ui/app.py` server routes
 
@@ -57,4 +60,3 @@ Set via your shell or system environment:
 - Do not commit secrets. Use environment variables for client ID/secret and PATs.
 - This MVP uses an in-memory chain; replace with an EVM devnet for smart contracts.
 - DSR delete currently removes user cNFT records only; chain is append-only and simulated.
-

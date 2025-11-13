@@ -37,5 +37,13 @@ class Job(Base):
     updated_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
     result: Mapped[str] = mapped_column(Text, default='')
 
+class OAuthToken(Base):
+    __tablename__ = 'oauth_tokens'
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    username: Mapped[str] = mapped_column(String(120), index=True)
+    provider: Mapped[str] = mapped_column(String(64), index=True)
+    token_encrypted: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[int] = mapped_column(Integer, default=lambda: int(time.time()))
+
 Base.metadata.create_all(bind=engine)
 

@@ -158,7 +158,12 @@ if __name__ == '__main__':
 @app.route('/api/user/me')
 def user_me():
     u = session.get('username')
-    return jsonify({"username": u, "github_connected": bool(session.get('github_token'))})
+    db = SessionLocal()
+    try:
+        count = db.query(OAuthToken).filter_by(username=u, provider='github').count()
+    finally:
+        db.close()
+    return jsonify({"username": u, "github_connected": bool(session.get('github_token')) or count > 0})
 
 @app.route('/api/cnft/list')
 def cnft_list():
