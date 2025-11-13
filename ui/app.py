@@ -7,12 +7,14 @@ from core.oracle import CognitiveOracle
 from miners.github_miner import GitHubMiner
 from ai.extractor import CognitiveExtractor
 from core.db import SessionLocal
-from core.models import User, CNFT, Block, Job
+from core.models import User, CNFT, Block, Job, OAuthToken
 import threading, uuid, json, time
 import requests
 
 app = Flask(__name__, template_folder='templates')
 app.config['SECRET_KEY'] = 'exus-dev-key'
+from core.logging import setup_json_logging
+setup_json_logging()
 blockchain = CortexChain()
 zk = ZKProver()
 oracle = CognitiveOracle()
@@ -136,9 +138,14 @@ def mine_job():
         db.commit()
     finally:
         db.close()
-    t = threading.Thread(target=run_mining_job, args=(job_id, username), daemon=True)
-    t.start()
-    return jsonify({"job_id": job_id, "status": "queued"})
+    try:
+        from core.queue import enqueue_or_thread
+        result = enqueue_or_thread(run_mining_job, job_id, username)
+        return jsonify({"job_id": job_id, "status": "queued", "executor": result.get("mode")})
+    except Exception:
+        t = threading.Thread(target=run_mining_job, args=(job_id, username), daemon=True)
+        t.start()
+        return jsonify({"job_id": job_id, "status": "queued", "executor": "thread"})
 
 @app.route('/api/job/<job_id>')
 def job_status(job_id):
@@ -248,6 +255,13 @@ def auth_github_callback():
         if not tok:
             return jsonify({"error":"oauth_exchange_failed", "detail": r.text}), 400
         session['github_token'] = tok
+        db = SessionLocal()
+        try:
+            from core.secure import encrypt
+            db.add(OAuthToken(username=session.get('username') or 'demo_user', provider='github', token_encrypted=encrypt(tok)))
+            db.commit()
+        finally:
+            db.close()
         return redirect('/')
     except Exception as e:
         return jsonify({"error":"oauth_error", "detail": str(e)}), 500

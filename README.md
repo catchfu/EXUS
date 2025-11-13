@@ -29,6 +29,7 @@ Set via your shell or system environment:
 - `OAUTH_REDIRECT_URI`: Callback URL, default `http://127.0.0.1:5000/auth/github/callback`
 - `FRED_API_KEY`: Optional, for market data expansion (not required in MVP)
 - `EXUS_SECRET`: Encryption secret for OAuth tokens (recommended)
+- `REDIS_URL`: Optional Redis URL to enable RQ queue (e.g., `redis://localhost:6379/0`)
 
 ## OAuth Setup (GitHub)
 1. Create a GitHub OAuth app (Developer settings → OAuth Apps)
@@ -53,6 +54,7 @@ Set via your shell or system environment:
 - Database: `core/db.py` configures SQLite; `core/models.py` defines schema
 - Jobs: In-process threads in `ui/app.py`; replace with a worker (RQ/Celery) in production
 - Worker: `python -m scripts.worker` processes queued jobs; set `WORKER_USERNAME` for target user
+- RQ Worker: `python -m scripts.rq_worker` to run an RQ worker if `REDIS_URL` is set
 - Miner: `miners/github_miner.py` fetches real commits or falls back to demo
 - UI: `ui/templates/dashboard.html` for the dashboard; `ui/app.py` server routes
 
