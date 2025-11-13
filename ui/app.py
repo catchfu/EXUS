@@ -19,6 +19,25 @@ blockchain = CortexChain()
 zk = ZKProver()
 oracle = CognitiveOracle()
 _RL = {}
+import logging, uuid as _uuid
+
+@app.before_request
+def _set_corr_id():
+    rid = request.headers.get('X-Request-Id') or _uuid.uuid4().hex
+    session['request_id'] = rid
+
+@app.after_request
+def _add_corr_id(resp):
+    rid = session.get('request_id')
+    if rid:
+        resp.headers['X-Request-Id'] = rid
+    logging.getLogger('request').info(json.dumps({
+        "path": request.path,
+        "method": request.method,
+        "status": resp.status_code,
+        "request_id": rid
+    }))
+    return resp
 
 @app.route('/')
 def dashboard():
@@ -159,6 +178,39 @@ def job_status(job_id):
     finally:
         db.close()
 
+@app.route('/api/metrics')
+def metrics():
+    db = SessionLocal()
+    try:
+        users = db.query(User).count()
+        cnfts = db.query(CNFT).count()
+        jobs_queued = db.query(Job).filter_by(status='queued').count()
+        jobs_running = db.query(Job).filter_by(status='running').count()
+        jobs_completed = db.query(Job).filter_by(status='completed').count()
+        return jsonify({
+            "users": users,
+            "cnfts": cnfts,
+            "jobs": {"queued": jobs_queued, "running": jobs_running, "completed": jobs_completed}
+        })
+    finally:
+        db.close()
+
+@app.route('/api/health')
+def health():
+    return jsonify({"ok": True})
+
+@app.route('/api/jobs')
+def jobs_list():
+    db = SessionLocal()
+    try:
+        items = db.query(Job).order_by(Job.created_at.desc()).limit(20).all()
+        return jsonify({"items": [
+            {"id": j.id, "type": j.type, "status": j.status, "updated_at": j.updated_at}
+            for j in items
+        ]})
+    finally:
+        db.close()
+
 if __name__ == '__main__':
     app.run(debug=True, threaded=True)
 
@@ -202,17 +254,6 @@ def chain_blocks():
 def market_data():
     return jsonify(oracle.get_market_data())
 
-@app.route('/api/jobs')
-def jobs_list():
-    db = SessionLocal()
-    try:
-        items = db.query(Job).order_by(Job.created_at.desc()).limit(20).all()
-        return jsonify({"items": [
-            {"id": j.id, "type": j.type, "status": j.status, "updated_at": j.updated_at}
-            for j in items
-        ]})
-    finally:
-        db.close()
 
 @app.route('/auth/github/start')
 def auth_github_start():

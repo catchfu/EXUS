@@ -47,6 +47,7 @@ Set via your shell or system environment:
 - `GET /api/chain/blocks` – Last blocks (in-memory)
 - `GET /api/market/data` - Market context (stubbed)
 - `GET /api/metrics` - Basic metrics (users, cNFTs, jobs)
+- `GET /api/health` - Service health
 - `GET /api/user/export` – Export user-related data
 - `DELETE /api/user/data` – Delete user’s cNFT data (simulated DSR)
 
@@ -62,3 +63,4 @@ Set via your shell or system environment:
 - Do not commit secrets. Use environment variables for client ID/secret and PATs.
 - This MVP uses an in-memory chain; replace with an EVM devnet for smart contracts.
 - DSR delete currently removes user cNFT records only; chain is append-only and simulated.
+- Requests include `X-Request-Id` header for correlation; JSON logs capture request metadata.
