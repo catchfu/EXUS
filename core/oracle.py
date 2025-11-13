@@ -53,3 +53,19 @@ class CognitiveOracle:
             "tech_sentiment": self.fetch_tech_sentiment(),
             "crypto": self.fetch_crypto_data()
         }
+
+    def fetch_fred_data(self, series_id: str) -> float:
+        now = time.time()
+        key = f"fred:{series_id}"
+        c = self._cache.get(key)
+        if c and now - c['t'] < self._ttl['fred']:
+            return c['v']
+        try:
+            r = requests.get("https://api.stlouisfed.org/fred/series/observations", params={"series_id": series_id, "api_key": os.getenv("FRED_API_KEY", ""), "file_type": "json", "limit": 1, "sort_order": "desc"}, timeout=5)
+            v = float(r.json()["observations"][0]["value"]) if r.status_code == 200 else 0.0
+            self._cache[key] = {"v": v, "t": now}
+            self._backoff['fred'] = 0
+            return v
+        except Exception:
+            self._backoff['fred'] = min(self._backoff['fred'] + 1, 5)
+            return c['v'] if c else 0.0

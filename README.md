@@ -48,6 +48,8 @@ Set via your shell or system environment:
 - `GET /api/market/data` - Market context (stubbed)
 - `GET /api/metrics` - Basic metrics (users, cNFTs, jobs)
 - `GET /api/health` - Service health
+ - `GET /api/job/:id` - Job status and result
+ - `GET /api/jobs` - Recent jobs
 - `GET /api/user/export` – Export user-related data
 - `DELETE /api/user/data` – Delete user’s cNFT data (simulated DSR)
 
@@ -64,3 +66,4 @@ Set via your shell or system environment:
 - This MVP uses an in-memory chain; replace with an EVM devnet for smart contracts.
 - DSR delete currently removes user cNFT records only; chain is append-only and simulated.
 - Requests include `X-Request-Id` header for correlation; JSON logs capture request metadata.
+- Market data uses caching/backoff for external sources to reduce latency and rate limits.

@@ -9,6 +9,7 @@ from core.zk_prover import ZKProver
 from core.blockchain import CortexChain
 from core.oracle import CognitiveOracle
 from core.secure import decrypt
+import logging
 
 blockchain = CortexChain()
 zk = ZKProver()
@@ -23,13 +24,14 @@ def _get_user_token(db, username: str) -> str:
     except Exception:
         return os.getenv('GITHUB_PAT')
 
-def process_mining_job(job_id: str, username: str):
+def process_mining_job(job_id: str, username: str, request_id: str = ""):
     db = SessionLocal()
     try:
         job = db.query(Job).get(job_id)
         job.status = 'running'
         job.updated_at = int(time.time())
         db.commit()
+        logging.getLogger('job').info(json.dumps({"event":"start","job_id":job_id,"username":username,"request_id":request_id}))
         token = _get_user_token(db, username)
         miner = GitHubMiner(token=token)
         commits = miner.get_recent_commits(username)
@@ -50,12 +52,13 @@ def process_mining_job(job_id: str, username: str):
         job.updated_at = int(time.time())
         job.result = json.dumps({"commits": commits, "commitment": commitment, "cnft": blockchain.cNFTs[token_id], "score": score, "chain": [block] if block else []})
         db.commit()
+        logging.getLogger('job').info(json.dumps({"event":"complete","job_id":job_id,"username":username,"request_id":request_id}))
     except Exception as e:
         job = db.query(Job).get(job_id)
         job.status = 'failed'
         job.updated_at = int(time.time())
         job.result = json.dumps({"error": str(e)})
         db.commit()
+        logging.getLogger('job').info(json.dumps({"event":"error","job_id":job_id,"username":username,"error":str(e),"request_id":request_id}))
     finally:
         db.close()
-

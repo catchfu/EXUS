@@ -104,41 +104,9 @@ def login_dev():
     finally:
         db.close()
 
-def run_mining_job(job_id, username):
-    db = SessionLocal()
-    try:
-        job = db.query(Job).get(job_id)
-        job.status = 'running'
-        job.updated_at = int(time.time())
-        db.commit()
-        miner = GitHubMiner(token=os.getenv('GITHUB_PAT'))
-        commits = miner.get_recent_commits(username)
-        extractor = CognitiveExtractor()
-        vectors = []
-        for c in commits:
-            v = extractor.analyze_commit(c)["vector"]
-            vectors.append(v)
-        avg = [sum(x)/len(x) for x in zip(*vectors)] if vectors else [0.5,0.5,0.5,0.5,0.5]
-        commitment = zk.create_commitment(avg)
-        token_id = blockchain.mint_cnft(username, commitment)
-        score = oracle.get_cognitive_score(avg)
-        blockchain.update_cnft_score(token_id, score, {"source":"job","correct":True,"reward":0})
-        block = blockchain.mine("miner_"+username)
-        db.merge(CNFT(token_id=token_id, owner=username, commitment=commitment["commitment"], nullifier=commitment["nullifier"], minted_at=commitment["timestamp"], cognitive_score=score, total_earnings=0.0, metadata_uri=blockchain.cNFTs[token_id]["metadata_uri"]))
-        if block:
-            db.add(Block(index=block["index"], timestamp=block["timestamp"], hash=block["hash"], miner=block["miner"], transactions=json.dumps(block["transactions"])) )
-        job.status = 'completed'
-        job.updated_at = int(time.time())
-        job.result = json.dumps({"commits": commits, "commitment": commitment, "cnft": blockchain.cNFTs[token_id], "score": score, "chain": [block] if block else []})
-        db.commit()
-    except Exception as e:
-        job = db.query(Job).get(job_id)
-        job.status = 'failed'
-        job.updated_at = int(time.time())
-        job.result = json.dumps({"error": str(e)})
-        db.commit()
-    finally:
-        db.close()
+def run_mining_job(job_id, username, request_id=None):
+    from core.jobs import process_mining_job
+    process_mining_job(job_id, username, request_id or "")
 
 @app.route('/api/mine/job', methods=['POST'])
 def mine_job():
@@ -159,7 +127,8 @@ def mine_job():
         db.close()
     try:
         from core.queue import enqueue_or_thread
-        result = enqueue_or_thread(run_mining_job, job_id, username)
+        rid = session.get('request_id')
+        result = enqueue_or_thread(run_mining_job, job_id, username, request_id=rid)
         return jsonify({"job_id": job_id, "status": "queued", "executor": result.get("mode")})
     except Exception:
         t = threading.Thread(target=run_mining_job, args=(job_id, username), daemon=True)
